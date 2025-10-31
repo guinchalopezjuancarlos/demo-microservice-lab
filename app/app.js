@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Middleware para parsear bodies
+
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json()); // Importante para tests con JSON
 

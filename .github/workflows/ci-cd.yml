@@ -14,11 +14,8 @@ env:
 
 jobs:
   ci:
-    name: Integracion continua (build y test)
+    name: Integración continua (build y test)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: app
 
     services:
       mysql:
@@ -35,35 +32,37 @@ jobs:
           --health-retries=5
 
     steps:
-      - name: Obtener codigo
+      - name: Obtener código
         uses: actions/checkout@v4
 
-      - name: Configuracion Node.js
+      - name: Configuración Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
       - name: Instalar dependencias
         run: npm install
+        working-directory: app
 
       - name: Esperar a que MySQL inicie
         run: sleep 20
 
-      - name: Ejecutar las pruebas
+      - name: Ejecutar pruebas
         env:
           DB_HOST: 127.0.0.1
           DB_USER: root
           DB_PASSWORD: ${{ env.MYSQL_ROOT_PASSWORD }}
           DB_NAME: ${{ env.MYSQL_DATABASE }}
         run: npm test
+        working-directory: app
 
-      - name: Iniciar sesion en Docker Hub
+      - name: Iniciar sesión en Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
       - name: Construir imagen (latest)
-        run: docker build -t $IMAGE_NAME:latest .
+        run: docker build -t $IMAGE_NAME:latest -f Dockerfile .
 
-      - name: Publicar la imagen (latest)
+      - name: Publicar imagen (latest)
         run: docker push $IMAGE_NAME:latest
 
   cd:
@@ -79,9 +78,6 @@ jobs:
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
-
-      - name: Ver fingerprint de la clave cargada en el agent
-        run: ssh-add -l -E sha256
 
       - name: Registrar known_hosts
         env:
@@ -102,16 +98,22 @@ jobs:
           ssh -o IdentitiesOnly=no -o StrictHostKeyChecking=yes \
               ec2-user@"$HOST" "IMAGE='$IMAGE' APP_PORT='$APP_PORT' bash -s" << 'EOF'
           set -euxo pipefail
+
+          # Iniciar Docker
           if command -v systemctl >/dev/null 2>&1; then
             sudo systemctl start docker || true
           else
             sudo service docker start || true
           fi
 
+          # Crear red si no existe
           docker network inspect appnet >/dev/null 2>&1 || docker network create appnet
+
+          # Detener y eliminar contenedor existente
           docker ps -q --filter "name=demo-microservice-lab" | grep -q . && docker stop demo-microservice-lab || true
           docker ps -aq --filter "name=demo-microservice-lab" | grep -q . && docker rm demo-microservice-lab || true
 
+          # Pull y run del contenedor
           docker pull "$IMAGE"
           docker run -d --name demo-microservice-lab --restart unless-stopped \
             --network appnet -p 80:"$APP_PORT" "$IMAGE"
