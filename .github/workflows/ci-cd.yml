@@ -122,37 +122,16 @@ jobs:
             --targets "Key=instanceIds,Values=$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "Desplegando app Node.js y MySQL en Docker" \
-            --parameters 'commands=[
+            --parameters '{"commands":[
               "set -euxo pipefail",
               "sudo systemctl enable docker || true",
               "sudo systemctl start docker || true",
               "docker network inspect appnet >/dev/null 2>&1 || docker network create appnet",
-              
-              # Desplegar MySQL si no existe
-              "docker ps -q --filter \"name=mysql-demo\" | grep -q . || \
-               docker run -d --name mysql-demo --network appnet \
-               -e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
-               -e MYSQL_DATABASE=$MYSQL_DATABASE \
-               -v /home/ec2-user/app/init.sql:/docker-entrypoint-initdb.d/init.sql \
-               mysql:8",
-
-              # Esperar a que MySQL esté listo
-              "until docker exec mysql-demo mysqladmin ping -h localhost --silent; do echo \"⏳ Esperando MySQL...\"; sleep 5; done",
-
-              # Parar contenedor antiguo de la app
+              "docker ps -q --filter \"name=mysql-demo\" | grep -q . || docker run -d --name mysql-demo --network appnet -e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD -e MYSQL_DATABASE=$MYSQL_DATABASE -v /home/ec2-user/app/init.sql:/docker-entrypoint-initdb.d/init.sql mysql:8",
+              "until docker exec mysql-demo mysqladmin ping -h localhost --silent; do echo \"Esperando MySQL...\"; sleep 5; done",
               "docker ps -q --filter \"name=demo-microservice-lab\" | grep -q . && docker stop demo-microservice-lab || true",
               "docker ps -aq --filter \"name=demo-microservice-lab\" | grep -q . && docker rm demo-microservice-lab || true",
-
-              # Limpiar imágenes antiguas (opcional)
               "docker images -q $IMAGE | xargs -r docker rmi -f || true",
-
-              # Pull de la imagen más reciente
               "docker pull $IMAGE",
-
-              # Ejecutar nuevo contenedor
-              "docker run -d --name demo-microservice-lab --restart unless-stopped --network appnet -p 80:3000 \
-               -e DB_HOST=mysql-demo \
-               -e DB_USER=root \
-               -e DB_PASSWORD=$MYSQL_ROOT_PASSWORD \
-               -e DB_NAME=$MYSQL_DATABASE $IMAGE"
-            ]'
+              "docker run -d --name demo-microservice-lab --restart unless-stopped --network appnet -p 80:3000 -e DB_HOST=mysql-demo -e DB_USER=root -e DB_PASSWORD=$MYSQL_ROOT_PASSWORD -e DB_NAME=$MYSQL_DATABASE $IMAGE"
+            ]}'
