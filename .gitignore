@@ -1,5 +1,6 @@
-# Node.js / NPM
-node_modules/
+# Node.js
+app/node_modules/
+npm-debug.log
 package-lock.json
 
 # Logs
@@ -17,14 +18,18 @@ build/
 .docker/
 docker-compose.override.yml
 
-# Project-specific temporary files
-/tmp/
-.local/
-uploads/
-data/
+# Terraform
+infra/.terraform/
+infra/terraform.tfstate
+infra/terraform.tfstate.backup
+
+# Editor / IDE
+.vscode/
+.idea/
 
 # System / OS files
 .DS_Store
 Thumbs.db
-.vscode/
-.idea/
+
+# NVM
+~/.nvm/
