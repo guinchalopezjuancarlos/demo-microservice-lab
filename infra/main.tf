@@ -66,7 +66,12 @@ locals {
     #!/bin/bash
     set -euxo pipefail
 
-    # Actualizar sistema e instalar Docker
+    # Instalar y arrancar SSM Agent (para AWS Systems Manager)
+    dnf install -y amazon-ssm-agent
+    systemctl enable amazon-ssm-agent
+    systemctl start amazon-ssm-agent
+
+    # Actualizar sistema e instalar Docker y Git
     dnf update -y
     dnf install -y docker git
     systemctl enable docker
@@ -110,5 +115,3 @@ resource "aws_instance" "this" {
     Project = var.project_name
   }
 }
-
-
