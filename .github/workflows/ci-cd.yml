@@ -8,7 +8,6 @@ on:
 
 env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/demo-microservice-lab
-  APP_PORT: ${{ secrets.APP_PORT || 3000 }}
   MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD || 'root' }}
   MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE || 'itemsdb' }}
   INSTANCE_TYPE: t3.micro
@@ -113,10 +112,9 @@ jobs:
 
           echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
 
-      - name: Desplegar contenedores Docker en EC2 vía SSM (espera MySQL)
+      - name: Desplegar contenedores Docker en EC2 vía SSM
         env:
           IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/demo-microservice-lab:latest
-          APP_PORT: ${{ env.APP_PORT }}
           MYSQL_ROOT_PASSWORD: ${{ env.MYSQL_ROOT_PASSWORD }}
           MYSQL_DATABASE: ${{ env.MYSQL_DATABASE }}
         run: |
@@ -135,5 +133,5 @@ jobs:
               "docker ps -q --filter \"name=demo-microservice-lab\" | grep -q . && docker stop demo-microservice-lab || true",
               "docker ps -aq --filter \"name=demo-microservice-lab\" | grep -q . && docker rm demo-microservice-lab || true",
               "docker pull $IMAGE",
-              "docker run -d --name demo-microservice-lab --restart unless-stopped --network appnet -p 80:$APP_PORT -e DB_HOST=mysql-demo -e DB_USER=root -e DB_PASSWORD=$MYSQL_ROOT_PASSWORD -e DB_NAME=$MYSQL_DATABASE $IMAGE"
+              "docker run -d --name demo-microservice-lab --restart unless-stopped --network appnet -p 80:3000 -e DB_HOST=mysql-demo -e DB_USER=root -e DB_PASSWORD=$MYSQL_ROOT_PASSWORD -e DB_NAME=$MYSQL_DATABASE $IMAGE"
             ]'
