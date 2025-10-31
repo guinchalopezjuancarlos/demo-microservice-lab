@@ -86,32 +86,17 @@ jobs:
         id: ec2
         run: |
           INSTANCE_ID=$(aws ec2 describe-instances \
-            --filters "Name=tag:Project,Values=demo-lab-cicd" \
+            --filters "Name=tag:Project,Values=demo-lab-cicd" "Name=instance-state-name,Values=running" \
             --query "Reservations[0].Instances[0].InstanceId" \
             --output text)
-          echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
 
-      - name: Validar instancia EC2 y SSM
-        run: |
           if [ -z "$INSTANCE_ID" ] || [ "$INSTANCE_ID" = "None" ]; then
-            echo "ERROR: No se encontró la instancia EC2 con el tag Project=demo-lab-cicd"
+            echo "❌ No hay instancias EC2 running con el tag Project=demo-lab-cicd"
             exit 1
           fi
 
-          STATE=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].State.Name" --output text)
-          if [ "$STATE" != "running" ]; then
-            echo "ERROR: La instancia EC2 $INSTANCE_ID no está en estado 'running' (estado actual: $STATE)"
-            exit 1
-          fi
-
-          # Validar que SSM Agent esté disponible
-          SSM_STATUS=$(aws ssm describe-instance-information --filters "Key=InstanceIds,Values=$INSTANCE_ID" --query "InstanceInformationList[0].PingStatus" --output text)
-          if [ "$SSM_STATUS" != "Online" ]; then
-            echo "ERROR: El SSM Agent de la instancia EC2 $INSTANCE_ID no está activo (estado: $SSM_STATUS)"
-            exit 1
-          fi
-
-          echo "Instancia EC2 $INSTANCE_ID encontrada, running y SSM activo."
+          echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
+          echo "✅ Instancia encontrada: $INSTANCE_ID"
 
       - name: Desplegar contenedores Docker en EC2
         env:
