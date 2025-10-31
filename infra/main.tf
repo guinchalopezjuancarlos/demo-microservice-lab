@@ -37,13 +37,12 @@ resource "aws_security_group" "this" {
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = [var.admin_cidr_ssh]
-
   }
 
   ingress {
-    description = "HTTP"
-    from_port   = 80
-    to_port     = 80
+    description = "HTTP Node App"
+    from_port   = 3000
+    to_port     = 3000
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -67,26 +66,31 @@ locals {
     #!/bin/bash
     set -euxo pipefail
 
+    # Instalar y arrancar SSM Agent
     dnf install -y amazon-ssm-agent
     systemctl enable amazon-ssm-agent
     systemctl start amazon-ssm-agent
 
+    # Actualizar sistema e instalar Docker + Git
     dnf update -y
     dnf install -y docker git
     systemctl enable docker
     systemctl start docker
     usermod -aG docker ec2-user
 
+    # Clonar repo
     mkdir -p /app
     cd /app
-    git clone https://github.com/tu_usuario/demo-microservice-lab-git.git .
+    git clone https://github.com/guinchalopezjuancarlos/demo-microservice-lab.git .
 
+    # Arrancar MySQL
     docker run -d --name mysql-demo -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=itemsdb -p 3306:3306 mysql:8
     sleep 20
-    docker exec -i mysql-demo mysql -u root -proot itemsdb -e "CREATE TABLE IF NOT EXISTS items (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255) NOT NULL);"
+    docker exec -i mysql-demo mysql -u root -proot itemsdb -e "CREATE TABLE IF NOT EXISTS items (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255) NOT NULL, quantity INT NOT NULL, price DECIMAL(10,2) NOT NULL);"
 
+    # Construir y arrancar Node.js
     docker build -t node_app_image .
-    docker run -d --name node-app_container -p 3000:3000 --network host node_app_image
+    docker run -d --name node-app_container -p 3000:3000 node_app_image
   EOT
 }
 
