@@ -102,7 +102,7 @@ jobs:
               --tag-specifications 'ResourceType=instance,Tags=[{Key=Project,Value=demo-lab}]' \
               --query "Instances[0].InstanceId" \
               --output text)
-            
+
             echo "🟢 Instancia creada: $INSTANCE_ID"
             aws ec2 wait instance-running --instance-ids $INSTANCE_ID
             echo "✅ Instancia lista y en ejecución"
@@ -110,7 +110,14 @@ jobs:
             echo "✅ Instancia encontrada: $INSTANCE_ID"
           fi
 
+          # Obtener IP pública
+          PUBLIC_IP=$(aws ec2 describe-instances \
+            --instance-ids $INSTANCE_ID \
+            --query "Reservations[0].Instances[0].PublicIpAddress" \
+            --output text)
           echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
+          echo "PUBLIC_IP=$PUBLIC_IP" >> $GITHUB_ENV
+          echo "🚀 App disponible en: http://$PUBLIC_IP"
 
       - name: Desplegar contenedores Docker en EC2 vía SSM
         env:
