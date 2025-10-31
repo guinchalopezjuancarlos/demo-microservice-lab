@@ -18,7 +18,7 @@ describe("CRUD de Usuarios", () => {
   });
 
   beforeEach(async () => {
-    // Limpiar tabla antes de cada test
+   
     await db.query("DELETE FROM items;");
   });
 
@@ -30,12 +30,12 @@ describe("CRUD de Usuarios", () => {
     const res = await request(app)
       .post("/create")
       .send({ name: "UsuarioTest" });
-    expect(res.statusCode).toBe(302); // redirect a /
+    expect(res.statusCode).toBe(302); 
     
-    // Verificar que el usuario realmente se insertó
+   
     const [rows] = await db.query("SELECT * FROM items WHERE name = ?", ["UsuarioTest"]);
     expect(rows.length).toBe(1);
-    createdId = rows[0].id; // guardar id para siguientes tests
+    createdId = rows[0].id; 
   });
 
   test("GET / debería listar usuarios", async () => {
@@ -58,7 +58,7 @@ describe("CRUD de Usuarios", () => {
       .send({ name: "UsuarioEditado" });
     expect(res.statusCode).toBe(302);
 
-    // Verificar que se actualizó
+   
     const [rows] = await db.query("SELECT * FROM items WHERE id = ?", [createdId]);
     expect(rows[0].name).toBe("UsuarioEditado");
   });
@@ -78,7 +78,7 @@ describe("CRUD de Usuarios", () => {
     const res = await request(app).post(`/delete/${createdId}`);
     expect(res.statusCode).toBe(302);
 
-    // Verificar que se eliminó
+   
     const [rows] = await db.query("SELECT * FROM items WHERE id = ?", [createdId]);
     expect(rows.length).toBe(0);
   });
