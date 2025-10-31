@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Editar Item</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f8; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+    .form-container { background-color: #fff; padding: 30px 40px; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.1); width: 400px; text-align: center; }
+    h1 { color: #0078d4; margin-bottom: 20px; }
+    input[type="text"] { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #ccc; }
+    button, a.button { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; background-color: #0078d4; color: white; cursor: pointer; text-decoration: none; display: inline-block; }
+    button:hover, a.button:hover { background-color: #005a9e; }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <h1>Editar Item</h1>
+    <form action="/edit/<%= item.id %>" method="POST">
+      <input type="text" name="name" value="<%= item.name %>" required>
+      <div>
+        <button type="submit">Actualizar</button>
+        <a href="/" class="button">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</body>
+</html>

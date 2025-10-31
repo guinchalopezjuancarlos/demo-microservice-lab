@@ -65,11 +65,35 @@ locals {
   user_data = <<-EOT
     #!/bin/bash
     set -euxo pipefail
+
+    # Actualizar sistema e instalar Docker
     dnf update -y
-    dnf install -y docker
+    dnf install -y docker git
     systemctl enable docker
     systemctl start docker
     usermod -aG docker ec2-user
+
+    # Crear directorio de la app
+    mkdir -p /app
+    cd /app
+
+    # Clonar tu repo (ajusta URL si es necesario)
+    git clone https://github.com/tu_usuario/demo-microservice-lab-git.git .
+
+    # Levantar MySQL
+    docker run -d --name mysql-demo -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=itemsdb -p 3306:3306 mysql:8
+
+    # Esperar que MySQL esté listo
+    sleep 20
+
+    # Crear tabla si no existe
+    docker exec -i mysql-demo mysql -u root -proot itemsdb -e "CREATE TABLE IF NOT EXISTS items (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255) NOT NULL);"
+
+    # Construir imagen Node.js
+    docker build -t node_app_image .
+
+    # Levantar contenedor Node.js conectado a MySQL
+    docker run -d --name node-app_container -p 3000:3000 --network host node_app_image
   EOT
 }
 
@@ -86,3 +110,5 @@ resource "aws_instance" "this" {
     Project = var.project_name
   }
 }
+
+
