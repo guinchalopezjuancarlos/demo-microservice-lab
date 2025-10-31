@@ -9,6 +9,8 @@ on:
 env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/demo-microservice-lab
   APP_PORT: ${{ secrets.APP_PORT || 3000 }}
+  MYSQL_ROOT_PASSWORD: root
+  MYSQL_DATABASE: itemsdb
 
 jobs:
   ci:
@@ -17,6 +19,20 @@ jobs:
     defaults:
       run:
         working-directory: app
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ${{ env.MYSQL_ROOT_PASSWORD }}
+          MYSQL_DATABASE: ${{ env.MYSQL_DATABASE }}
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     steps:
       - name: Obtener codigo
@@ -30,7 +46,15 @@ jobs:
       - name: Instalar dependencias
         run: npm install
 
+      - name: Esperar a que MySQL inicie
+        run: sleep 20
+
       - name: Ejecutar las pruebas
+        env:
+          DB_HOST: 127.0.0.1
+          DB_USER: root
+          DB_PASSWORD: ${{ env.MYSQL_ROOT_PASSWORD }}
+          DB_NAME: ${{ env.MYSQL_DATABASE }}
         run: npm test
 
       - name: Iniciar sesion en Docker Hub
@@ -57,26 +81,17 @@ jobs:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
       - name: Ver fingerprint de la clave cargada en el agent
-        run: |
-          set -euo pipefail
-          ssh-add -l -E sha256
+        run: ssh-add -l -E sha256
 
       - name: Registrar known_hosts
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
-          ssh-keyscan -T 10 -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+        run: ssh-keyscan -T 10 -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
 
-      - name: Probar conexión SSH (solo publickey, usando agent)
+      - name: Probar conexión SSH
         env:
           HOST: ${{ secrets.EC2_HOST }}
-        run: |
-          set -euo pipefail
-          ssh -o PreferredAuthentications=publickey \
-              -o PubkeyAuthentication=yes \
-              ec2-user@"$HOST" 'whoami && uname -a'
+        run: ssh -o PreferredAuthentications=publickey -o PubkeyAuthentication=yes ec2-user@"$HOST" 'whoami && uname -a'
 
       - name: Desplegar contenedor en EC2
         env:
@@ -84,8 +99,6 @@ jobs:
           IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/demo-microservice-lab:latest
           APP_PORT: ${{ env.APP_PORT }}
         run: |
-          set -euo pipefail
-          # Pasar variables al shell remoto antes de ejecutar el script
           ssh -o IdentitiesOnly=no -o StrictHostKeyChecking=yes \
               ec2-user@"$HOST" "IMAGE='$IMAGE' APP_PORT='$APP_PORT' bash -s" << 'EOF'
           set -euxo pipefail
