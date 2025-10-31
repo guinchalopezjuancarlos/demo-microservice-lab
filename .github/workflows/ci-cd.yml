@@ -1,4 +1,4 @@
-name: CI/CD - Microservicio Node.js en DOCKER desplegado en EC2
+name: CI/CD - Microservicio Node.js en DOCKER desplegado en EC2 (robusto)
 
 on:
   push:
@@ -11,6 +11,8 @@ env:
   APP_PORT: ${{ secrets.APP_PORT || 3000 }}
   MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD || 'root' }}
   MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE || 'itemsdb' }}
+  INSTANCE_TYPE: t3.micro
+  AMI_ID: ami-0c02fb55956c7d316  # Amazon Linux 2023 AMI en us-east-1
 
 jobs:
   ci:
@@ -67,7 +69,7 @@ jobs:
         run: docker push $IMAGE_NAME:latest
 
   cd:
-    name: Despliegue robusto en EC2 vía SSM
+    name: Despliegue EC2 vía SSM (robusto)
     runs-on: ubuntu-latest
     needs: [ci]
 
@@ -82,21 +84,36 @@ jobs:
       - name: Probar credenciales AWS
         run: aws sts get-caller-identity
 
-      - name: Obtener ID de la instancia EC2
+      - name: Obtener o crear instancia EC2
         id: ec2
         run: |
           INSTANCE_ID=$(aws ec2 describe-instances \
-            --filters "Name=tag:Project,Values=demo-lab-cicd" "Name=instance-state-name,Values=running" \
+            --filters "Name=tag:Project,Values=demo-lab" "Name=instance-state-name,Values=running" \
             --query "Reservations[0].Instances[0].InstanceId" \
             --output text)
 
           if [ -z "$INSTANCE_ID" ] || [ "$INSTANCE_ID" = "None" ]; then
-            echo "❌ No hay instancias EC2 running con el tag Project=demo-lab-cicd"
-            exit 1
+            echo "⚠️ No se encontró instancia EC2. Creando nueva..."
+            INSTANCE_ID=$(aws ec2 run-instances \
+              --image-id $AMI_ID \
+              --instance-type $INSTANCE_TYPE \
+              --key-name ${{ secrets.EC2_KEY_NAME }} \
+              --security-group-ids ${{ secrets.EC2_SECURITY_GROUP_ID }} \
+              --subnet-id ${{ secrets.EC2_SUBNET_ID }} \
+              --tag-specifications 'ResourceType=instance,Tags=[{Key=Project,Value=demo-lab}]' \
+              --query "Instances[0].InstanceId" \
+              --output text)
+            
+            echo "🟢 Instancia creada: $INSTANCE_ID"
+
+            # Esperar a que la instancia esté en estado running
+            aws ec2 wait instance-running --instance-ids $INSTANCE_ID
+            echo "✅ Instancia lista y en ejecución"
+          else
+            echo "✅ Instancia encontrada: $INSTANCE_ID"
           fi
 
           echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
-          echo "✅ Instancia encontrada: $INSTANCE_ID"
 
       - name: Desplegar contenedores Docker en EC2
         env:
