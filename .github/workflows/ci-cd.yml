@@ -9,8 +9,8 @@ on:
 env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/demo-microservice-lab
   APP_PORT: ${{ secrets.APP_PORT || 3000 }}
-  MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
-  MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE }}
+  MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD || 'root' }}
+  MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE || 'itemsdb' }}
 
 jobs:
   ci:
@@ -20,11 +20,26 @@ jobs:
       run:
         working-directory: app
 
+    # ✅ Añadimos el servicio MySQL
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: itemsdb
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
-      - name: Obtener codigo
+      - name: Obtener código
         uses: actions/checkout@v4
 
-      - name: Configuracion Node.js
+      - name: Configuración Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
@@ -32,10 +47,20 @@ jobs:
       - name: Instalar dependencias
         run: npm install
 
+      - name: Esperar a que MySQL esté listo
+        run: |
+          echo "Esperando que MySQL se inicie..."
+          sleep 20
+
       - name: Ejecutar las pruebas
+        env:
+          DB_HOST: 127.0.0.1
+          DB_USER: root
+          DB_PASSWORD: root
+          DB_NAME: itemsdb
         run: npm test
 
-      - name: Iniciar sesion en Docker Hub
+      - name: Iniciar sesión en Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
       - name: Construir imagen (latest)
@@ -110,13 +135,6 @@ jobs:
           # Detener y eliminar contenedor Node.js si existe
           docker ps -q --filter "name=demo-microservice-lab" | grep -q . && docker stop demo-microservice-lab || true
           docker ps -aq --filter "name=demo-microservice-lab" | grep -q . && docker rm demo-microservice-lab || true
-
-          # Debug variables
-          echo "Deploying Node.js app with:"
-          echo "DB_HOST=mysql-demo"
-          echo "DB_USER=root"
-          echo "DB_PASSWORD=$MYSQL_ROOT_PASSWORD"
-          echo "DB_NAME=$MYSQL_DATABASE"
 
           # Ejecutar contenedor Node.js
           docker pull "$IMAGE"
