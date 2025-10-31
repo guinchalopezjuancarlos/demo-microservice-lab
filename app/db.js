@@ -8,5 +8,5 @@ const db = await mysql.createPool({
   port: process.env.DB_PORT || 3306,
 });
 
-console.log(`✅ Conectado a MySQL en ${process.env.DB_HOST || "localhost"}:${process.env.DB_PORT || 3306}`);
+console.log(` Conectado a MySQL en ${process.env.DB_HOST || "localhost"}:${process.env.DB_PORT || 3306}`);
 export default db;

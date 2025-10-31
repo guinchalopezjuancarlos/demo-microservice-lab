@@ -127,11 +127,19 @@ jobs:
               "sudo systemctl enable docker || true",
               "sudo systemctl start docker || true",
               "docker network inspect appnet >/dev/null 2>&1 || docker network create appnet",
-              "docker ps -q --filter \"name=mysql-demo\" | grep -q . || docker run -d --name mysql-demo --network appnet -e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD -e MYSQL_DATABASE=$MYSQL_DATABASE mysql:8",
+              "docker ps -q --filter \"name=mysql-demo\" | grep -q . || \
+               docker run -d --name mysql-demo --network appnet \
+               -e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
+               -e MYSQL_DATABASE=$MYSQL_DATABASE \
+               -v /home/ec2-user/app/init.sql:/docker-entrypoint-initdb.d/init.sql \
+               mysql:8",
               "until docker exec mysql-demo mysqladmin ping -h localhost --silent; do echo \"⏳ Esperando MySQL...\"; sleep 5; done",
-              "docker exec -i mysql-demo mysql -u root -p$MYSQL_ROOT_PASSWORD $MYSQL_DATABASE -e \"CREATE TABLE IF NOT EXISTS items (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255) NOT NULL);\"",
               "docker ps -q --filter \"name=demo-microservice-lab\" | grep -q . && docker stop demo-microservice-lab || true",
               "docker ps -aq --filter \"name=demo-microservice-lab\" | grep -q . && docker rm demo-microservice-lab || true",
               "docker pull $IMAGE",
-              "docker run -d --name demo-microservice-lab --restart unless-stopped --network appnet -p 80:3000 -e DB_HOST=mysql-demo -e DB_USER=root -e DB_PASSWORD=$MYSQL_ROOT_PASSWORD -e DB_NAME=$MYSQL_DATABASE $IMAGE"
+              "docker run -d --name demo-microservice-lab --restart unless-stopped --network appnet -p 80:3000 \
+               -e DB_HOST=mysql-demo \
+               -e DB_USER=root \
+               -e DB_PASSWORD=$MYSQL_ROOT_PASSWORD \
+               -e DB_NAME=$MYSQL_DATABASE $IMAGE"
             ]'
