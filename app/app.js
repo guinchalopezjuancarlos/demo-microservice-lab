@@ -10,6 +10,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 
+
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json()); // Importante para tests con JSON
 
